@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soporte y Resistencia</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Análisis de Soporte y Resistencia</h1>
+    <label for="symbol">Introduce el símbolo de la moneda (ej. BTCUSDT):</label>
+    <input type="text" id="symbol" placeholder="BTCUSDT">
+    <button onclick="fetchData()">Analizar</button>
+    <p id="result"></p>
+    <canvas id="chart" width="800" height="400"></canvas>
+
+    <script>
+        async function fetchData() {
+            const symbol = document.getElementById('symbol').value.trim();
+            if (!symbol) {
+                alert("Por favor, introduce un símbolo válido.");
+                return;
+            }
+
+            try {
+                console.log(`Consultando datos para el símbolo: ${symbol}`);
+                
+                // Realiza la solicitud a la API de Binance
+                const response = await fetch(`https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1h&limit=100`);
+
+                if (!response.ok) {
+                    throw new Error(`Error en la API de Binance: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log("Datos recibidos de Binance:", data);
+
+                // Extraer precios de cierre
+                const preciosCierre = data.map(candle => parseFloat(candle[4]));
+
+                // Verifica que hay datos
+                if (!preciosCierre.length) {
+                    throw new Error("No se encontraron datos de precios.");
+                }
+
+                // Calcular soporte y resistencia
+                const soporte = Math.min(...preciosCierre.slice(-20)); // Mínimo de las últimas 20 horas
+                const resistencia = Math.max(...preciosCierre.slice(-20)); // Máximo de las últimas 20 horas
+
+                // Mostrar soporte y resistencia
+                document.getElementById('result').textContent = `Soporte: ${soporte.toFixed(2)}, Resistencia: ${resistencia.toFixed(2)}`;
+
+                // Graficar los precios y los niveles de soporte/resistencia
+                plotChart(preciosCierre, soporte, resistencia);
+            } catch (error) {
+                console.error("Error al analizar los datos:", error);
+                document.getElementById('result').textContent = "Error al analizar los datos. Ver consola para más detalles.";
+            }
+        }
+
+        function plotChart(preciosCierre, soporte, resistencia) {
+            const ctx = document.getElementById('chart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: preciosCierre.map((_, i) => i),
+                    datasets: [
+                        {
+                            label: 'Precio de Cierre',
+                            data: preciosCierre,
+                            borderColor: 'blue',
+                            fill: false
+                        },
+                        {
+                            label: 'Soporte',
+                            data: Array(preciosCierre.length).fill(soporte),
+                            borderColor: 'green',
+                            borderDash: [10, 5],
+                            fill: false
+                        },
+                        {
+                            label: 'Resistencia',
+                            data: Array(preciosCierre.length).fill(resistencia),
+                            borderColor: 'red',
+                            borderDash: [10, 5],
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Análisis de Soporte y Resistencia'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Horas'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Precio (USDT)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
